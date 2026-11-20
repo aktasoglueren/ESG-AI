@@ -1,0 +1,8 @@
+Model önerisi:
+Qwen3-0.6B LiteRT-LM
+
+Model sayfası:
+https://huggingface.co/litert-community/Qwen3-0.6B
+
+Uygulama yalnızca .litertlm biçimindeki model dosyasını seçer.
+Model dosyasını APK içine koyma. Telefona ayrı indir.
