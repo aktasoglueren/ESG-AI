@@ -4,6 +4,5 @@
         <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_esg</item>
         <item name="android:windowSplashScreenIconBackgroundColor">#16364D</item>
         <item name="android:windowSplashScreenAnimationDuration">450</item>
-        <item name="android:postSplashScreenTheme">@style/BaseESGTheme</item>
     </style>
 </resources>
