@@ -490,7 +490,6 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                 }
             )
         }
-    }
 
         if (showOnlineSettings) {
             AlertDialog(
