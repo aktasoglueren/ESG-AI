@@ -3,6 +3,17 @@ package com.esgmuhendislik.esgai
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.ContentValues
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
+import android.graphics.Paint
+import android.graphics.Matrix
+import android.net.Uri
+import android.os.Build
+import android.provider.MediaStore
 import android.os.Bundle
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -11,6 +22,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -22,6 +34,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -78,6 +91,15 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         var status by remember { mutableStateOf("Başlamak için .litertlm model dosyanı seç.") }
         var input by remember { mutableStateOf("") }
         var speakReplies by remember { mutableStateOf(true) }
+        var showOnlineDialog by remember { mutableStateOf(false) }
+        var showEditor by remember { mutableStateOf(false) }
+        var useOnline by remember { mutableStateOf(false) }
+        var onlineConfig by remember { mutableStateOf(HybridAiClient.loadConfig(this@MainActivity)) }
+        var endpointInput by remember { mutableStateOf(onlineConfig?.endpoint ?: "https://api.openai.com/v1/chat/completions") }
+        var modelInput by remember { mutableStateOf(onlineConfig?.model ?: "") }
+        var apiKeyInput by remember { mutableStateOf("") }
+        var selectedBitmap by remember { mutableStateOf<Bitmap?>(null) }
+        var originalBitmap by remember { mutableStateOf<Bitmap?>(null) }
 
         val lines = remember {
             mutableStateListOf<ChatLine>().apply {
@@ -169,6 +191,23 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
             }
         }
 
+        val imagePicker = rememberLauncherForActivityResult(
+            ActivityResultContracts.GetContent()
+        ) { uri ->
+            if (uri != null) {
+                try {
+                    val bitmap = contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
+                    if (bitmap != null) {
+                        selectedBitmap = bitmap
+                        originalBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true)
+                        showEditor = true
+                    } else status = "Görsel açılamadı."
+                } catch (error: Exception) {
+                    status = "Görsel açılamadı: ${error.message}"
+                }
+            }
+        }
+
         val speechLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.StartActivityForResult()
         ) { result ->
@@ -251,11 +290,16 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                             ) {
                                 Text(if (modelReady) "Modeli değiştir" else "Modelini yükle", fontWeight = FontWeight.Bold)
                             }
-                            Spacer(Modifier.width(10.dp))
+                            Spacer(Modifier.width(8.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(if (modelReady) "YEREL MOTOR AKTİF" else "YEREL MOTOR", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                Text(if (modelReady) "Cihazında çalışıyor" else "Başlamak için model seç", color = Color(0xFF91A9B9), fontSize = 10.sp)
+                                Text(if (modelReady) "Cihazında çalışıyor" else "Model bekleniyor", color = Color(0xFF91A9B9), fontSize = 10.sp)
                             }
+                            OutlinedButton(
+                                onClick = { showOnlineDialog = true },
+                                shape = RoundedCornerShape(13.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 9.dp)
+                            ) { Text("Çevrimiçi", fontSize = 11.sp) }
                         }
                     }
                 }
@@ -305,7 +349,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                                         Text("Nasıl yardımcı olabilirim?", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                                         Spacer(Modifier.height(6.dp))
                                         Text(
-                                            "Sohbete başlamak için önce yerel modelini yükle.",
+                                            "Yerel modeli yükleyebilir veya çevrimiçi bağlantını ayarlayabilirsin.",
                                             color = Color(0xFF91A8B8),
                                             fontSize = 11.sp
                                         )
@@ -362,6 +406,9 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                             maxLines = 3,
                             shape = RoundedCornerShape(14.dp)
                         )
+                        IconButton(onClick = { imagePicker.launch("image/*") }) {
+                            Text("＋", color = Color(0xFFFF9857), fontSize = 24.sp)
+                        }
                         IconButton(onClick = {
                             if (ContextCompat.checkSelfPermission(
                                     this@MainActivity,
@@ -376,23 +423,36 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                             Text("🎙", fontSize = 21.sp)
                         }
                         Button(
-                            enabled = modelReady && !busy && input.isNotBlank(),
+                            enabled = (modelReady || (useOnline && onlineConfig != null)) && !busy && (input.isNotBlank() || selectedBitmap != null),
                             onClick = {
-                                val prompt = input.trim()
+                                val prompt = input.trim().ifBlank { "Bu görseli incele ve yardımcı ol." }
+                                val imageForRequest = selectedBitmap
                                 input = ""
-                                lines.add(ChatLine("Sen", prompt))
+                                selectedBitmap = null
+                                lines.add(ChatLine("Sen", if (imageForRequest != null) "📷 Görsel eklendi. $prompt" else prompt))
                                 persistHistory()
                                 busy = true
                                 val replyIndex = lines.size
                                 lines.add(ChatLine(assistantName, "Yanıt hazırlanıyor..."))
                                 uiScope.launch {
                                     try {
-                                        val answer = withContext(modelDispatcher) {
-                                            val output = StringBuilder()
-                                            checkNotNull(conversation)
-                                                .sendMessageAsync(prompt)
-                                                .collect { chunk -> output.append(chunk.toString()) }
-                                            output.toString()
+                                        val answer = if (useOnline && onlineConfig != null) {
+                                            val bytes = imageForRequest?.let { bitmap ->
+                                                java.io.ByteArrayOutputStream().use { out ->
+                                                    bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
+                                                    out.toByteArray()
+                                                }
+                                            }
+                                            HybridAiClient.ask(onlineConfig!!, prompt, bytes)
+                                        } else {
+                                            require(imageForRequest == null) { "Görsel analizi için çevrimiçi modu etkinleştirip API bağlantısı kur." }
+                                            withContext(modelDispatcher) {
+                                                val output = StringBuilder()
+                                                checkNotNull(conversation)
+                                                    .sendMessageAsync(prompt)
+                                                    .collect { chunk -> output.append(chunk.toString()) }
+                                                output.toString()
+                                            }
                                         }
                                         lines[replyIndex] = ChatLine(assistantName, answer.ifBlank { "Yanıt alınamadı." })
                                         persistHistory()
@@ -456,6 +516,92 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                 }
             }
         }
+        if (showOnlineDialog) {
+            AlertDialog(
+                onDismissRequest = { showOnlineDialog = false },
+                title = { Text("Çevrimiçi yapay zekâ bağlantısı") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("OpenAI uyumlu HTTPS servis bilgilerini gir. API anahtarı cihazında şifreli saklanır.", fontSize = 12.sp)
+                        OutlinedTextField(value = endpointInput, onValueChange = { endpointInput = it }, label = { Text("API adresi") }, singleLine = true)
+                        OutlinedTextField(value = modelInput, onValueChange = { modelInput = it }, label = { Text("Model adı") }, singleLine = true)
+                        OutlinedTextField(value = apiKeyInput, onValueChange = { apiKeyInput = it }, label = { Text("API anahtarı") }, singleLine = true)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Switch(checked = useOnline, onCheckedChange = { useOnline = it }, enabled = onlineConfig != null || modelInput.isNotBlank())
+                            Text("Çevrimiçi modu kullan", fontSize = 12.sp)
+                        }
+                        if (onlineConfig != null) Text("Bağlantı ayarlı. Yeni anahtar girerek değiştirebilirsin.", color = Color(0xFF2E9D73), fontSize = 11.sp)
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        try {
+                            if (apiKeyInput.isNotBlank()) {
+                                HybridAiClient.saveConfig(this@MainActivity, endpointInput.trim(), modelInput.trim(), apiKeyInput.trim())
+                                onlineConfig = HybridAiClient.loadConfig(this@MainActivity)
+                                apiKeyInput = ""
+                            }
+                            if (onlineConfig == null) error("Önce API adresi, model ve API anahtarı kaydet.")
+                            useOnline = true
+                            showOnlineDialog = false
+                            status = "Çevrimiçi bağlantı ayarlandı. İlk mesajında servis bağlantısı sınanacak."
+                        } catch (error: Exception) { status = error.message ?: "Ayar kaydedilemedi." }
+                    }) { Text("Kaydet ve etkinleştir") }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        useOnline = false
+                        showOnlineDialog = false
+                    }) { Text("Kapat") }
+                }
+            )
+        }
+
+        if (showEditor && selectedBitmap != null) {
+            AlertDialog(
+                onDismissRequest = { showEditor = false },
+                title = { Text("Görsel Atölyesi") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Image(
+                            bitmap = selectedBitmap!!.asImageBitmap(),
+                            contentDescription = "Düzenlenen fotoğraf",
+                            modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp)
+                        )
+                        Text("Fotoğrafı düzenle ve cihazına kaydet.", fontSize = 12.sp)
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            OutlinedButton(onClick = {
+                                selectedBitmap = transformBitmap(selectedBitmap!!, rotate = 90f)
+                            }) { Text("Döndür") }
+                            OutlinedButton(onClick = {
+                                selectedBitmap = transformBitmap(selectedBitmap!!, grayscale = true)
+                            }) { Text("Siyah-beyaz") }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            OutlinedButton(onClick = {
+                                selectedBitmap = transformBitmap(selectedBitmap!!, brightness = 1.15f)
+                            }) { Text("Parlat") }
+                            OutlinedButton(onClick = {
+                                originalBitmap?.let { selectedBitmap = it.copy(Bitmap.Config.ARGB_8888, true) }
+                            }) { Text("Sıfırla") }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        try {
+                            saveEditedBitmap(selectedBitmap!!)
+                            status = "Düzenlenen görsel Galeri'ye kaydedildi."
+                            showEditor = false
+                        } catch (error: Exception) { status = "Kaydedilemedi: ${error.message}" }
+                    }) { Text("Galeriye kaydet") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showEditor = false }) { Text("Kapat") }
+                }
+            )
+        }
+
         if (showNameDialog) {
             var newName by remember { mutableStateOf(assistantName) }
             AlertDialog(
@@ -484,6 +630,49 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                     }
                 }
             )
+        }
+    }
+
+ 
+    private fun transformBitmap(source: Bitmap, rotate: Float = 0f, grayscale: Boolean = false, brightness: Float = 1f): Bitmap {
+        val matrix = Matrix().apply { postRotate(rotate) }
+        val rotated = if (rotate != 0f) Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true) else source
+        val output = Bitmap.createBitmap(rotated.width, rotated.height, Bitmap.Config.ARGB_8888)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        val colorMatrix = ColorMatrix()
+        if (grayscale) colorMatrix.setSaturation(0f)
+        val values = floatArrayOf(
+            brightness,0f,0f,0f,0f,
+            0f,brightness,0f,0f,0f,
+            0f,0f,brightness,0f,0f,
+            0f,0f,0f,1f,0f
+        )
+        val brightMatrix = ColorMatrix(values)
+        if (grayscale) colorMatrix.postConcat(brightMatrix) else colorMatrix.set(brightMatrix)
+        paint.colorFilter = ColorMatrixColorFilter(colorMatrix)
+        Canvas(output).drawBitmap(rotated, 0f, 0f, paint)
+        return output
+    }
+
+    private fun saveEditedBitmap(bitmap: Bitmap) {
+        val name = "ESG_AI_${System.currentTimeMillis()}.jpg"
+        val values = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, name)
+            put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/ESG AI")
+                put(MediaStore.Images.Media.IS_PENDING, 1)
+            }
+        }
+        val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+            ?: error("Galeri kaydı oluşturulamadı.")
+        contentResolver.openOutputStream(uri)?.use { stream ->
+            if (!bitmap.compress(Bitmap.CompressFormat.JPEG, 94, stream)) error("Görsel sıkıştırılamadı.")
+        } ?: error("Dosya akışı açılamadı.")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            values.clear()
+            values.put(MediaStore.Images.Media.IS_PENDING, 0)
+            contentResolver.update(uri, values, null, null)
         }
     }
 
