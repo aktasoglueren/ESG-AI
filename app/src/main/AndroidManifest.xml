@@ -7,7 +7,7 @@
         android:icon="@drawable/ic_esg"
         android:label="ESG AI"
         android:supportsRtl="true"
-        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        android:theme="@style/ESGTheme">
 
         <uses-native-library
             android:name="libvndksupport.so"
