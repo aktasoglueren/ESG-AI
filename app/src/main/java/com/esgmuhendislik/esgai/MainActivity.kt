@@ -2,6 +2,7 @@ package com.esgmuhendislik.esgai
 
 import android.Manifest
 import android.content.Intent
+import android.net.Uri
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.speech.RecognizerIntent
@@ -78,6 +79,14 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         var status by remember { mutableStateOf("Başlamak için .litertlm model dosyanı seç.") }
         var input by remember { mutableStateOf("") }
         var speakReplies by remember { mutableStateOf(true) }
+        var aiMode by remember { mutableStateOf(prefs.getString("ai_mode", "offline") ?: "offline") }
+        var onlineConfigured by remember { mutableStateOf(HybridAiClient.loadConfig(this@MainActivity) != null) }
+        var showOnlineSettings by remember { mutableStateOf(false) }
+        var endpoint by remember { mutableStateOf("https://api.openai.com/v1/chat/completions") }
+        var onlineModel by remember { mutableStateOf("gpt-4o-mini") }
+        var apiKey by remember { mutableStateOf("") }
+        var selectedImage by remember { mutableStateOf<ByteArray?>(null) }
+        var selectedImageMime by remember { mutableStateOf("image/jpeg") }
 
         val lines = remember {
             mutableStateListOf<ChatLine>().apply {
@@ -169,6 +178,22 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
             }
         }
 
+        val imagePicker = rememberLauncherForActivityResult(
+            ActivityResultContracts.OpenDocument()
+        ) { uri ->
+            if (uri != null) {
+                try {
+                    val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                        ?: error("Fotoğraf okunamadı.")
+                    selectedImage = bytes
+                    selectedImageMime = contentResolver.getType(uri) ?: "image/jpeg"
+                    status = "Fotoğraf eklendi. Çevrimiçi modda analiz edebilirsin."
+                } catch (error: Exception) {
+                    status = "Fotoğraf açılamadı: ${error.message}"
+                }
+            }
+        }
+
         val speechLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.StartActivityForResult()
         ) { result ->
@@ -241,6 +266,35 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
 
                 Spacer(Modifier.height(12.dp))
 
+                Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF102B40))) {
+                    Column(Modifier.fillMaxWidth().padding(10.dp)) {
+                        Text("Yapay zekâ modu", color = Color.White, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(6.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = { aiMode = "offline"; prefs.edit().putString("ai_mode", aiMode).apply() },
+                                colors = ButtonDefaults.buttonColors(containerColor = if (aiMode == "offline") Color(0xFFFF650B) else Color(0xFF29465A)),
+                                modifier = Modifier.weight(1f)
+                            ) { Text("Çevrimdışı") }
+                            Button(
+                                onClick = { aiMode = "online"; prefs.edit().putString("ai_mode", aiMode).apply() },
+                                colors = ButtonDefaults.buttonColors(containerColor = if (aiMode == "online") Color(0xFFFF650B) else Color(0xFF29465A)),
+                                modifier = Modifier.weight(1f)
+                            ) { Text("Çevrimiçi") }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                if (aiMode == "offline") { if (modelReady) "Yerel model hazır" else "Yerel model seçilmedi" }
+                                else { if (onlineConfigured) "Çevrimiçi bağlantı ayarlı" else "API bağlantısı ayarlanmalı" },
+                                color = Color.LightGray, modifier = Modifier.weight(1f), fontSize = 12.sp
+                            )
+                            TextButton(onClick = { showOnlineSettings = true }) {
+                                Text("Bağlantı ayarları", color = Color(0xFFFF9A55))
+                            }
+                        }
+                    }
+                }
+
                 LazyColumn(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                     state = listState,
@@ -283,6 +337,13 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
 
                 Spacer(Modifier.height(10.dp))
 
+                if (selectedImage != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("📷 Fotoğraf eklendi", color = Color(0xFFFFB27C), modifier = Modifier.weight(1f))
+                        TextButton(onClick = { selectedImage = null }) { Text("Kaldır") }
+                    }
+                }
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     OutlinedTextField(
                         value = input,
@@ -292,6 +353,9 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                         maxLines = 4
                     )
                     Spacer(Modifier.width(6.dp))
+                    IconButton(onClick = { imagePicker.launch(arrayOf("image/*")) }) {
+                        Text("📷", fontSize = 22.sp)
+                    }
                     IconButton(onClick = {
                         if (ContextCompat.checkSelfPermission(
                                 this@MainActivity,
@@ -306,23 +370,33 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                         Text("🎙", fontSize = 22.sp)
                     }
                     Button(
-                        enabled = modelReady && !busy && input.isNotBlank(),
+                        enabled = !busy && input.isNotBlank() && (if (aiMode == "offline") modelReady else onlineConfigured),
                         onClick = {
                             val prompt = input.trim()
+                            val imageForRequest = selectedImage
+                            val mimeForRequest = selectedImageMime
                             input = ""
-                            lines.add(ChatLine("Sen", prompt))
+                            selectedImage = null
+                            lines.add(ChatLine("Sen", prompt + if (imageForRequest != null) " [Fotoğraf]" else ""))
                             persistHistory()
                             busy = true
                             val replyIndex = lines.size
                             lines.add(ChatLine(assistantName, "Yanıt hazırlanıyor..."))
                             uiScope.launch {
                                 try {
-                                    val answer = withContext(modelDispatcher) {
-                                        val output = StringBuilder()
-                                        checkNotNull(conversation)
-                                            .sendMessageAsync(prompt)
-                                            .collect { chunk -> output.append(chunk.toString()) }
-                                        output.toString()
+                                    val answer = if (aiMode == "online") {
+                                        val config = checkNotNull(HybridAiClient.loadConfig(this@MainActivity))
+                                        HybridAiClient.ask(config, prompt, imageForRequest, mimeForRequest)
+                                    } else if (imageForRequest != null) {
+                                        "Bu yerel model görüntü analizini desteklemiyor. Fotoğraf analizi için Çevrimiçi mod ve görüntü destekleyen model seç."
+                                    } else {
+                                        withContext(modelDispatcher) {
+                                            val output = StringBuilder()
+                                            checkNotNull(conversation)
+                                                .sendMessageAsync(prompt)
+                                                .collect { chunk -> output.append(chunk.toString()) }
+                                            output.toString()
+                                        }
                                     }
                                     lines[replyIndex] = ChatLine(
                                         assistantName,
@@ -412,6 +486,47 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                 dismissButton = {
                     TextButton(onClick = { showNameDialog = false }) {
                         Text("Vazgeç")
+                    }
+                }
+            )
+        }
+    }
+
+        if (showOnlineSettings) {
+            AlertDialog(
+                onDismissRequest = { showOnlineSettings = false },
+                title = { Text("Çevrimiçi AI bağlantısı") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Kendi servis anahtarını gir. Kullanım ücretleri sağlayıcıya ait olabilir.", fontSize = 12.sp)
+                        OutlinedTextField(value = endpoint, onValueChange = { endpoint = it }, label = { Text("HTTPS API adresi") }, singleLine = true)
+                        OutlinedTextField(value = onlineModel, onValueChange = { onlineModel = it }, label = { Text("Model adı") }, singleLine = true)
+                        OutlinedTextField(value = apiKey, onValueChange = { apiKey = it }, label = { Text("API anahtarı") }, singleLine = true)
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        try {
+                            HybridAiClient.saveConfig(this@MainActivity, endpoint, onlineModel, apiKey)
+                            onlineConfigured = true
+                            apiKey = ""
+                            showOnlineSettings = false
+                            status = "Çevrimiçi bağlantı bilgileri güvenli şekilde kaydedildi."
+                        } catch (error: Exception) {
+                            status = "Ayar kaydedilemedi: ${error.message}"
+                        }
+                    }) { Text("Kaydet") }
+                },
+                dismissButton = {
+                    Row {
+                        TextButton(onClick = {
+                            HybridAiClient.clearConfig(this@MainActivity)
+                            onlineConfigured = false
+                            apiKey = ""
+                            showOnlineSettings = false
+                            status = "Çevrimiçi bağlantı kaldırıldı."
+                        }) { Text("Bağlantıyı sil") }
+                        TextButton(onClick = { showOnlineSettings = false }) { Text("Kapat") }
                     }
                 }
             )
