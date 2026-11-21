@@ -193,169 +193,232 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
             )
         ) {
             Column(
-                Modifier.fillMaxSize()
-                    .background(Color(0xFF071B2C))
-                    .padding(16.dp)
+                modifier = Modifier.fillMaxSize()
+                    .background(Color(0xFF07131F))
+                    .padding(horizontal = 18.dp, vertical = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(13.dp)
             ) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Surface(
+                        shape = RoundedCornerShape(17.dp),
+                        color = Color(0xFFFF650B),
+                        modifier = Modifier.size(52.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text("E⚡G", color = Color(0xFF07131F), fontSize = 17.sp, fontWeight = FontWeight.Black)
+                        }
+                    }
+                    Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(
-                            "E⚡G  ESG AI",
-                            color = Color.White,
-                            fontSize = 25.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            "Kişisel yerel yapay zekâ",
-                            color = Color(0xFFFF9A55),
-                            fontSize = 13.sp
-                        )
+                        Text("ESG AI", color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.ExtraBold)
+                        Text("INTELLIGENCE • YOUR WORKSPACE", color = Color(0xFF8FA7B9), fontSize = 9.sp, fontWeight = FontWeight.Bold)
                     }
-                    TextButton(onClick = { showNameDialog = true }) {
-                        Text("Asistan: $assistantName", color = Color.White)
-                    }
-                }
-
-                Spacer(Modifier.height(12.dp))
-
-                Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF102B40))) {
-                    Column(Modifier.fillMaxWidth().padding(12.dp)) {
-                        Text(status, color = Color.White, fontSize = 13.sp)
-                        Spacer(Modifier.height(8.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Button(onClick = { modelPicker.launch(arrayOf("*/*")) }) {
-                                Text(if (modelReady) "Modeli değiştir" else "Model seç")
-                            }
-                            Spacer(Modifier.width(8.dp))
-                            Text("Sesli yanıt", color = Color.White, fontSize = 12.sp)
-                            Switch(
-                                checked = speakReplies,
-                                onCheckedChange = { speakReplies = it }
-                            )
-                        }
-                    }
-                }
-
-                Spacer(Modifier.height(12.dp))
-
-                LazyColumn(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                    state = listState,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (lines.isEmpty()) {
-                        item {
-                            Text(
-                                "Merhaba! Önce bir .litertlm model dosyası seç. " +
-                                    "Model yüklenince çevrimdışı sohbet başlayacak.",
-                                color = Color.LightGray,
-                                modifier = Modifier.padding(8.dp)
-                            )
-                        }
-                    }
-                    items(lines) { line ->
-                        val isUser = line.role == "Sen"
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = if (modelReady) Color(0xFF123B32) else Color(0xFF263442)
+                    ) {
                         Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
+                            modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Surface(
-                                color = if (isUser) Color(0xFF8D3A0B) else Color(0xFF173B54),
+                            Box(Modifier.size(7.dp).background(if (modelReady) Color(0xFF42D6A0) else Color(0xFFFFA24A), RoundedCornerShape(50)))
+                            Spacer(Modifier.width(7.dp))
+                            Text(if (modelReady) "HAZIR" else "BEKLEMEDE", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(25.dp),
+                    color = Color(0xFF10283B)
+                ) {
+                    Column(Modifier.padding(19.dp)) {
+                        Text("KİŞİSEL YAPAY ZEKÂ ALANIN", color = Color(0xFFFF9857), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(8.dp))
+                        Text("Fikirlerini\nharekete geçir.", color = Color.White, fontSize = 27.sp, lineHeight = 31.sp, fontWeight = FontWeight.ExtraBold)
+                        Spacer(Modifier.height(7.dp))
+                        Text("Sor, üret, keşfet. ESG AI yanında.", color = Color(0xFFB4C4D1), fontSize = 13.sp)
+                        Spacer(Modifier.height(15.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Button(
+                                onClick = { modelPicker.launch(arrayOf("*/*")) },
                                 shape = RoundedCornerShape(14.dp),
-                                modifier = Modifier.fillMaxWidth(0.88f)
+                                contentPadding = PaddingValues(horizontal = 17.dp, vertical = 11.dp)
                             ) {
-                                Column(Modifier.padding(12.dp)) {
-                                    Text(
-                                        line.role,
-                                        color = Color(0xFFFFB27C),
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(line.text, color = Color.White)
-                                }
+                                Text(if (modelReady) "Modeli değiştir" else "Modelini yükle", fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(if (modelReady) "YEREL MOTOR AKTİF" else "YEREL MOTOR", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                Text(if (modelReady) "Cihazında çalışıyor" else "Başlamak için model seç", color = Color(0xFF91A9B9), fontSize = 10.sp)
                             }
                         }
                     }
                 }
 
-                Spacer(Modifier.height(10.dp))
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(
-                        value = input,
-                        onValueChange = { input = it },
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text("Mesajını yaz...") },
-                        maxLines = 4
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    IconButton(onClick = {
-                        if (ContextCompat.checkSelfPermission(
-                                this@MainActivity,
-                                Manifest.permission.RECORD_AUDIO
-                            ) == PackageManager.PERMISSION_GRANTED
+                Surface(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    shape = RoundedCornerShape(23.dp),
+                    color = Color(0xFF0C2030)
+                ) {
+                    Column(Modifier.fillMaxSize().padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            launchSpeech(speechLauncher)
-                        } else {
-                            microphonePermission.launch(Manifest.permission.RECORD_AUDIO)
+                            Column(Modifier.weight(1f)) {
+                                Text("SOHBET ALANI", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
+                                Text("Asistanınla konuşmaya başla", color = Color(0xFF829BAE), fontSize = 10.sp)
+                            }
+                            Text("✦  $assistantName", color = Color(0xFFFF9857), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            TextButton(onClick = { showNameDialog = true }) {
+                                Text("Düzenle", color = Color(0xFF9CB1C1), fontSize = 10.sp)
+                            }
                         }
-                    }) {
-                        Text("🎙", fontSize = 22.sp)
-                    }
-                    Button(
-                        enabled = modelReady && !busy && input.isNotBlank(),
-                        onClick = {
-                            val prompt = input.trim()
-                            input = ""
-                            lines.add(ChatLine("Sen", prompt))
-                            persistHistory()
-                            busy = true
-                            val replyIndex = lines.size
-                            lines.add(ChatLine(assistantName, "Yanıt hazırlanıyor..."))
-                            uiScope.launch {
-                                try {
-                                    val answer = withContext(modelDispatcher) {
-                                        val output = StringBuilder()
-                                        checkNotNull(conversation)
-                                            .sendMessageAsync(prompt)
-                                            .collect { chunk -> output.append(chunk.toString()) }
-                                        output.toString()
-                                    }
-                                    lines[replyIndex] = ChatLine(
-                                        assistantName,
-                                        answer.ifBlank { "Yanıt alınamadı." }
-                                    )
-                                    persistHistory()
-                                    if (speakReplies && ttsReady && answer.isNotBlank()) {
-                                        tts?.speak(
-                                            answer,
-                                            TextToSpeech.QUEUE_FLUSH,
-                                            null,
-                                            "esg_ai_reply"
+                        HorizontalDivider(color = Color(0xFF20394B), thickness = 1.dp)
+                        Spacer(Modifier.height(9.dp))
+                        LazyColumn(
+                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                            state = listState,
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            if (lines.isEmpty()) {
+                                item {
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth().padding(top = 28.dp, bottom = 20.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Surface(
+                                            shape = RoundedCornerShape(22.dp),
+                                            color = Color(0xFF172F42),
+                                            modifier = Modifier.size(62.dp)
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Text("✦", color = Color(0xFFFF8B43), fontSize = 30.sp)
+                                            }
+                                        }
+                                        Spacer(Modifier.height(14.dp))
+                                        Text("Nasıl yardımcı olabilirim?", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                                        Spacer(Modifier.height(6.dp))
+                                        Text(
+                                            "Sohbete başlamak için önce yerel modelini yükle.",
+                                            color = Color(0xFF91A8B8),
+                                            fontSize = 11.sp
                                         )
                                     }
-                                } catch (error: Exception) {
-                                    lines[replyIndex] = ChatLine(
-                                        "Sistem",
-                                        "Hata: ${error.message ?: "Yanıt alınamadı."}"
-                                    )
-                                    persistHistory()
-                                } finally {
-                                    busy = false
+                                }
+                            }
+                            items(lines) { line ->
+                                val isUser = line.role == "Sen"
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
+                                ) {
+                                    Surface(
+                                        color = if (isUser) Color(0xFF71350F) else Color(0xFF183247),
+                                        shape = RoundedCornerShape(
+                                            topStart = 17.dp,
+                                            topEnd = 17.dp,
+                                            bottomStart = if (isUser) 17.dp else 5.dp,
+                                            bottomEnd = if (isUser) 5.dp else 17.dp
+                                        ),
+                                        modifier = Modifier.fillMaxWidth(0.88f)
+                                    ) {
+                                        Column(Modifier.padding(horizontal = 13.dp, vertical = 11.dp)) {
+                                            Text(
+                                                line.role.uppercase(Locale.ROOT),
+                                                color = if (isUser) Color(0xFFFFC08D) else Color(0xFFFF9857),
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.ExtraBold
+                                            )
+                                            Spacer(Modifier.height(4.dp))
+                                            Text(line.text, color = Color(0xFFF4F7FA), fontSize = 13.sp, lineHeight = 19.sp)
+                                        }
+                                    }
                                 }
                             }
                         }
+                    }
+                }
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(19.dp),
+                    color = Color(0xFF132A3C)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(start = 10.dp, end = 7.dp, top = 5.dp, bottom = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Gönder")
+                        OutlinedTextField(
+                            value = input,
+                            onValueChange = { input = it },
+                            modifier = Modifier.weight(1f),
+                            placeholder = { Text("ESG AI'ya mesaj yaz...", fontSize = 12.sp) },
+                            maxLines = 3,
+                            shape = RoundedCornerShape(14.dp)
+                        )
+                        IconButton(onClick = {
+                            if (ContextCompat.checkSelfPermission(
+                                    this@MainActivity,
+                                    Manifest.permission.RECORD_AUDIO
+                                ) == PackageManager.PERMISSION_GRANTED
+                            ) {
+                                launchSpeech(speechLauncher)
+                            } else {
+                                microphonePermission.launch(Manifest.permission.RECORD_AUDIO)
+                            }
+                        }) {
+                            Text("🎙", fontSize = 21.sp)
+                        }
+                        Button(
+                            enabled = modelReady && !busy && input.isNotBlank(),
+                            onClick = {
+                                val prompt = input.trim()
+                                input = ""
+                                lines.add(ChatLine("Sen", prompt))
+                                persistHistory()
+                                busy = true
+                                val replyIndex = lines.size
+                                lines.add(ChatLine(assistantName, "Yanıt hazırlanıyor..."))
+                                uiScope.launch {
+                                    try {
+                                        val answer = withContext(modelDispatcher) {
+                                            val output = StringBuilder()
+                                            checkNotNull(conversation)
+                                                .sendMessageAsync(prompt)
+                                                .collect { chunk -> output.append(chunk.toString()) }
+                                            output.toString()
+                                        }
+                                        lines[replyIndex] = ChatLine(assistantName, answer.ifBlank { "Yanıt alınamadı." })
+                                        persistHistory()
+                                        if (speakReplies && ttsReady && answer.isNotBlank()) {
+                                            tts?.speak(answer, TextToSpeech.QUEUE_FLUSH, null, "esg_ai_reply")
+                                        }
+                                    } catch (error: Exception) {
+                                        lines[replyIndex] = ChatLine("Sistem", "Hata: ${error.message ?: "Yanıt alınamadı."}")
+                                        persistHistory()
+                                    } finally {
+                                        busy = false
+                                    }
+                                }
+                            },
+                            shape = RoundedCornerShape(13.dp),
+                            contentPadding = PaddingValues(horizontal = 13.dp, vertical = 12.dp)
+                        ) {
+                            Text("➤", fontSize = 17.sp)
+                        }
                     }
                 }
 
                 Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextButton(onClick = {
                         lines.clear()
@@ -373,20 +436,26 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                             }
                         }
                     }) {
-                        Text("Sohbeti temizle", color = Color.LightGray)
+                        Text("⌫  Sohbeti temizle", color = Color(0xFF91A8B8), fontSize = 10.sp)
                     }
-                    TextButton(onClick = {
-                        val lastReply = lines.lastOrNull { it.role != "Sen" }?.text
-                        if (!lastReply.isNullOrBlank() && ttsReady) {
-                            tts?.speak(lastReply, TextToSpeech.QUEUE_FLUSH, null, "esg_ai_manual")
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Sesli yanıt", color = Color(0xFF91A8B8), fontSize = 10.sp)
+                        Switch(
+                            checked = speakReplies,
+                            onCheckedChange = { speakReplies = it }
+                        )
+                        TextButton(onClick = {
+                            val lastReply = lines.lastOrNull { it.role != "Sen" }?.text
+                            if (!lastReply.isNullOrBlank() && ttsReady) {
+                                tts?.speak(lastReply, TextToSpeech.QUEUE_FLUSH, null, "esg_ai_manual")
+                            }
+                        }) {
+                            Text("Oku", color = Color(0xFFFF9857), fontSize = 10.sp)
                         }
-                    }) {
-                        Text("Son yanıtı oku", color = Color.LightGray)
                     }
                 }
             }
         }
-
         if (showNameDialog) {
             var newName by remember { mutableStateOf(assistantName) }
             AlertDialog(
