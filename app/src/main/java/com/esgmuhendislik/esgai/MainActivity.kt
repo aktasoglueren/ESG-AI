@@ -12,6 +12,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -23,6 +24,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -213,8 +215,19 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         MaterialTheme(
             colorScheme = darkColorScheme(
                 primary = Color(0xFFFF650B),
+                onPrimary = Color(0xFF071B2C),
+                primaryContainer = Color(0xFF8D3A0B),
+                onPrimaryContainer = Color.White,
+                secondary = Color(0xFFFF9A55),
+                onSecondary = Color(0xFF071B2C),
                 background = Color(0xFF071B2C),
-                surface = Color(0xFF102B40)
+                onBackground = Color(0xFFF4F7FA),
+                surface = Color(0xFF102B40),
+                onSurface = Color(0xFFF4F7FA),
+                surfaceVariant = Color(0xFF193B52),
+                onSurfaceVariant = Color(0xFFB8C9D5),
+                outline = Color(0xFF456176),
+                error = Color(0xFFFF6B6B)
             )
         ) {
             Column(
@@ -226,17 +239,25 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_esg),
+                        contentDescription = "ESG AI logosu",
+                        modifier = Modifier.size(58.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(
-                            "E⚡G  ESG AI",
+                            "ESG AI",
                             color = Color.White,
-                            fontSize = 25.sp,
-                            fontWeight = FontWeight.Bold
+                            fontSize = 27.sp,
+                            fontWeight = FontWeight.ExtraBold
                         )
                         Text(
-                            "Kişisel yerel yapay zekâ",
+                            "E⚡G  •  AKILLI ASİSTAN",
                             color = Color(0xFFFF9A55),
-                            fontSize = 13.sp
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 1.2.sp
                         )
                     }
                     TextButton(onClick = { showNameDialog = true }) {
