@@ -37,9 +37,14 @@ jobs:
       - name: Debug APK derle
         run: gradle --no-daemon assembleDebug --stacktrace
 
+      - name: APK dosyasını ESG-AI.apk olarak adlandır
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/ESG-AI.apk
+
       - name: APK dosyasını yükle
         uses: actions/upload-artifact@v4
         with:
-          name: ESG-AI-DEBUG-APK
-          path: app/build/outputs/apk/debug/*.apk
+          name: ESG-AI-APK
+          path: dist/ESG-AI.apk
           if-no-files-found: error
