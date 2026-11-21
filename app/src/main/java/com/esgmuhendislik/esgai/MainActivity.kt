@@ -23,6 +23,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -232,8 +233,8 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         ) {
             Column(
                 Modifier.fillMaxSize()
-                    .background(Color(0xFF071B2C))
-                    .padding(16.dp)
+                    .background(Brush.verticalGradient(listOf(Color(0xFF071B2C), Color(0xFF0B263A), Color(0xFF071B2C))))
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -267,7 +268,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
 
                 Spacer(Modifier.height(12.dp))
 
-                Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF102B40))) {
+                Card(shape = RoundedCornerShape(20.dp), elevation = CardDefaults.cardElevation(defaultElevation = 5.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF102B40))) {
                     Column(Modifier.fillMaxWidth().padding(12.dp)) {
                         Text(status, color = Color.White, fontSize = 13.sp)
                         Spacer(Modifier.height(8.dp))
