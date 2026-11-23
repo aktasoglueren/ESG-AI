@@ -733,7 +733,9 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
             )
         }
 
-    }    private fun transformBitmap(source: Bitmap, rotate: Float = 0f, grayscale: Boolean = false, brightness: Float = 1f): Bitmap {
+    }
+
+    private fun transformBitmap(source: Bitmap, rotate: Float = 0f, grayscale: Boolean = false, brightness: Float = 1f): Bitmap {
         val matrix = Matrix().apply { postRotate(rotate) }
         val rotated = if (rotate != 0f) Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true) else source
         val output = Bitmap.createBitmap(rotated.width, rotated.height, Bitmap.Config.ARGB_8888)
