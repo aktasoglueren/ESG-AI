@@ -97,6 +97,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         var showOnlineDialog by remember { mutableStateOf(false) }
         var showEditor by remember { mutableStateOf(false) }
          var onlineConfig by remember { mutableStateOf(HybridAiClient.loadConfig(this@MainActivity)) }
+        var onlineMode by remember { mutableStateOf(prefs.getBoolean("online_mode", onlineConfig != null) && onlineConfig != null) }
         var endpointInput by remember { mutableStateOf(onlineConfig?.endpoint ?: "https://generativelanguage.googleapis.com/v1beta/models") }
         var modelInput by remember { mutableStateOf(onlineConfig?.model ?: "") }
         var apiKeyInput by remember { mutableStateOf("") }
@@ -241,6 +242,8 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                             }
                         }
                         modelReady = true
+                        onlineMode = false
+                        prefs.edit().putBoolean("online_mode", false).apply()
                         status = "Hazır. Model telefonda çalışıyor."
                     } catch (error: Exception) {
                         status = "Model yüklenemedi: ${error.message ?: "Bilinmeyen hata"}"
@@ -384,17 +387,52 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                             onClick = { showChatsDialog = true; drawerScope.launch { drawerState.close() } },
                             modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                         )
+                        Text("ÇALIŞMA MODU", color = muted, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(start = 18.dp, top = 14.dp, bottom = 4.dp))
                         NavigationDrawerItem(
-                            label = { Text("Model seçimi") },
+                            label = { Text("Çevrim içi kullan") },
+                            selected = onlineMode,
+                            icon = { Text("◎", fontSize = 18.sp, color = if (onlineMode) accent else muted) },
+                            onClick = {
+                                if (onlineConfig != null) {
+                                    onlineMode = true
+                                    prefs.edit().putBoolean("online_mode", true).apply()
+                                    status = "Çevrim içi mod etkin."
+                                } else {
+                                    showOnlineDialog = true
+                                }
+                                drawerScope.launch { drawerState.close() }
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+                        NavigationDrawerItem(
+                            label = { Text("Çevrim dışı kullan") },
+                            selected = !onlineMode,
+                            icon = { Text("◉", fontSize = 18.sp, color = if (!onlineMode) accent else muted) },
+                            onClick = {
+                                if (modelReady) {
+                                    onlineMode = false
+                                    prefs.edit().putBoolean("online_mode", false).apply()
+                                    status = "Çevrim dışı mod etkin. Yanıtlar cihazdaki modelden üretilecek."
+                                } else {
+                                    status = "Önce cihazdaki .litertlm modelini yükle."
+                                    modelPicker.launch(arrayOf("*/*"))
+                                }
+                                drawerScope.launch { drawerState.close() }
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+                        NavigationDrawerItem(
+                            label = { Text("Yerel model yükle / değiştir") },
                             selected = false,
-                            icon = { Text("✦", fontSize = 18.sp, color = accent) },
+                            icon = { Text("⬇", fontSize = 18.sp, color = muted) },
                             onClick = { modelPicker.launch(arrayOf("*/*")); drawerScope.launch { drawerState.close() } },
                             modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                         )
                         NavigationDrawerItem(
-                            label = { Text("Çevrimiçi bağlantı") },
+                            label = { Text("Çevrim içi API ayarları") },
                             selected = false,
-                            icon = { Text("◎", fontSize = 18.sp, color = muted) },
+                            icon = { Text("⚙", fontSize = 18.sp, color = muted) },
                             onClick = { showOnlineDialog = true; drawerScope.launch { drawerState.close() } },
                             modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                         )
@@ -429,9 +467,9 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                             Text("ESG AI", color = fg, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                             Text("Yapay zekân, her an yanında.", color = muted, fontSize = 10.sp)
                         }
-                        Surface(shape = RoundedCornerShape(50), color = if (modelReady) Color(0xFFDCFCE7) else panelAlt) {
-                            Text(if (modelReady) "● HAZIR" else "● BEKLEMEDE",
-                                color = if (modelReady) Color(0xFF16834A) else muted,
+                        Surface(shape = RoundedCornerShape(50), color = if (onlineMode) Color(0xFFDCFCE7) else panelAlt) {
+                            Text(if (onlineMode) "● ÇEVRİM İÇİ" else "● ÇEVRİM DIŞI",
+                                color = if (onlineMode) Color(0xFF16834A) else muted,
                                 fontSize = 9.sp, fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp))
                         }
@@ -446,11 +484,12 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                             Spacer(Modifier.width(9.dp))
                             Column(Modifier.weight(1f)) {
                                 Text("VOLTARA", color = fg, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                Text(if (onlineConfig != null) "İnternet araştırması hazır" else if (modelReady) "Cihazdaki model" else "Model seçilmedi",
-                                    color = muted, fontSize = 10.sp)
+                                Text(if (onlineMode && onlineConfig != null) "Çevrim içi • ${onlineConfig!!.model}" else if (modelReady) "Çevrim dışı • cihaz modeli" else "Yerel model yüklenmedi",
+                                    color = muted, fontSize = 10.sp, maxLines = 1)
                             }
-                            TextButton(onClick = { showOnlineDialog = true }) { Text("Çevrimiçi", fontSize = 10.sp) }
-                            TextButton(onClick = { modelPicker.launch(arrayOf("*/*")) }) { Text("Model seç", fontSize = 10.sp) }
+                            TextButton(onClick = { drawerScope.launch { drawerState.open() } }) {
+                                Text("Modu değiştir", fontSize = 10.sp)
+                            }
                         }
                     }
 
@@ -531,7 +570,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                                 } else microphonePermission.launch(Manifest.permission.RECORD_AUDIO)
                             }) { Text("🎙", fontSize = 20.sp) }
                             Button(
-                                enabled = (modelReady || onlineConfig != null) && !busy && (input.isNotBlank() || selectedBitmap != null),
+                                enabled = ((onlineMode && onlineConfig != null) || (!onlineMode && modelReady)) && !busy && (input.isNotBlank() || selectedBitmap != null),
                                 onClick = {
                                     val prompt = input.trim().ifBlank { "Bu görseli incele ve yardımcı ol." }
                                     val imageForRequest = selectedBitmap
@@ -544,7 +583,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                                     lines.add(ChatLine(assistantName, "Yanıt hazırlanıyor..."))
                                     uiScope.launch {
                                         try {
-                                            val answer = if (onlineConfig != null) {
+                                            val answer = if (onlineMode && onlineConfig != null) {
                                                 val bytes = imageForRequest?.let { bitmap ->
                                                     java.io.ByteArrayOutputStream().use { out ->
                                                         bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
@@ -627,13 +666,13 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                 confirmButton = {
                     TextButton(onClick = {
                         try {
-                            if (apiKeyInput.isNotBlank()) {
-                                HybridAiClient.saveConfig(this@MainActivity, endpointInput.trim(), modelInput.trim(), apiKeyInput.trim())
-                                onlineConfig = HybridAiClient.loadConfig(this@MainActivity)
-                                apiKeyInput = ""
-                            }
-                            if (onlineConfig == null) error("Önce API adresi, model ve API anahtarı kaydet.")
-                             showOnlineDialog = false
+                            HybridAiClient.saveConfig(this@MainActivity, endpointInput.trim(), modelInput.trim(), apiKeyInput.trim())
+                            onlineConfig = HybridAiClient.loadConfig(this@MainActivity)
+                            onlineMode = true
+                            prefs.edit().putBoolean("online_mode", true).apply()
+                            apiKeyInput = ""
+                            if (onlineConfig == null) error("Çevrim içi bağlantı kaydedilemedi.")
+                            showOnlineDialog = false
                             status = "Bağlantı kaydedildi. İnternet araştırması aynı sohbet içinde otomatik kullanılacak."
                         } catch (error: Exception) { status = error.message ?: "Ayar kaydedilemedi." }
                     }) { Text("Kaydet ve etkinleştir") }
