@@ -30,8 +30,9 @@ object HybridAiClient {
     fun saveConfig(context: Context, endpoint: String, model: String, apiKey: String) {
         require(endpoint.startsWith("https://")) { "Güvenlik için HTTPS adresi gerekli." }
         require(model.isNotBlank()) { "Model adı boş olamaz." }
-        require(apiKey.isNotBlank()) { "API anahtarı boş olamaz." }
-        val encrypted = encrypt(apiKey)
+        val effectiveKey = apiKey.trim().ifBlank { loadConfig(context)?.apiKey.orEmpty() }
+        require(effectiveKey.isNotBlank()) { "İlk bağlantı için API anahtarı gerekli." }
+        val encrypted = encrypt(effectiveKey)
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putString("endpoint", endpoint.trim().trimEnd('/'))
             .putString("model", model.trim())
