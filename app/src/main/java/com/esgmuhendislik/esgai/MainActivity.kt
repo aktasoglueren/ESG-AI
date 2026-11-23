@@ -55,6 +55,7 @@ import java.util.Locale
 import java.util.concurrent.Executors
 
 private data class ChatLine(val role: String, val text: String)
+private data class ChatSession(val id: String, val title: String, val lines: List<ChatLine>)
 
 class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     private val modelDispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
@@ -82,10 +83,8 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     @Composable
     private fun ESGApp() {
         val prefs = remember { getSharedPreferences("esg_ai", MODE_PRIVATE) }
-        var assistantName by remember {
-            mutableStateOf(prefs.getString("assistant_name", "ESG") ?: "ESG")
-        }
-        var showNameDialog by remember { mutableStateOf(false) }
+        val assistantName = "VOLTARA"
+        var showChatsDialog by remember { mutableStateOf(false) }
         var modelReady by remember { mutableStateOf(false) }
         var busy by remember { mutableStateOf(false) }
         var status by remember { mutableStateOf("Başlamak için .litertlm model dosyanı seç.") }
@@ -101,26 +100,75 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         var selectedBitmap by remember { mutableStateOf<Bitmap?>(null) }
         var originalBitmap by remember { mutableStateOf<Bitmap?>(null) }
 
-        val lines = remember {
-            mutableStateListOf<ChatLine>().apply {
-                addAll(readHistory(prefs))
-            }
+        val sessions = remember { mutableStateListOf<ChatSession>().apply { addAll(readSessions(prefs)) } }
+        var activeChatId by remember {
+            mutableStateOf(prefs.getString("active_chat_id", null) ?: sessions.firstOrNull()?.id ?: "chat-${System.currentTimeMillis()}")
         }
+        val startingSession = sessions.firstOrNull { it.id == activeChatId }
+        val lines = remember { mutableStateListOf<ChatLine>().apply { addAll(startingSession?.lines ?: readHistory(prefs)) } }
+        if (sessions.isEmpty()) sessions.add(ChatSession(activeChatId, "Yeni sohbet", lines.toList()))
         val listState = rememberLazyListState()
 
-        // Keep the newest chat message visible, including when a long reply is updated.
         LaunchedEffect(lines.size, lines.lastOrNull()?.text) {
-            if (lines.isNotEmpty()) {
-                listState.animateScrollToItem(lines.lastIndex)
-            }
+            if (lines.isNotEmpty()) listState.animateScrollToItem(lines.lastIndex)
         }
 
         fun persistHistory() {
-            val array = JSONArray()
-            lines.forEach { line ->
-                array.put(JSONObject().put("role", line.role).put("text", line.text))
+            val title = lines.firstOrNull { it.role == "Sen" }?.text?.replace("\\n", " ")?.take(34)?.ifBlank { "Yeni sohbet" } ?: "Yeni sohbet"
+            val index = sessions.indexOfFirst { it.id == activeChatId }
+            val updated = ChatSession(activeChatId, title, lines.toList())
+            if (index >= 0) sessions[index] = updated else sessions.add(0, updated)
+            val all = JSONArray()
+            sessions.forEach { session ->
+                val messages = JSONArray()
+                session.lines.forEach { line -> messages.put(JSONObject().put("role", line.role).put("text", line.text)) }
+                all.put(JSONObject().put("id", session.id).put("title", session.title).put("lines", messages))
             }
-            prefs.edit().putString("chat_history", array.toString()).apply()
+            val legacy = JSONArray()
+            lines.forEach { line -> legacy.put(JSONObject().put("role", line.role).put("text", line.text)) }
+            prefs.edit().putString("chat_sessions", all.toString()).putString("active_chat_id", activeChatId)
+                .putString("chat_history", legacy.toString()).putString("assistant_name", assistantName).apply()
+        }
+
+        fun restoreConversation(history: List<ChatLine>) {
+            uiScope.launch {
+                withContext(modelDispatcher) {
+                    conversation?.close()
+                    conversation = engine?.createConversation(
+                        ConversationConfig(
+                            systemInstruction = Contents.of("Senin adın VOLTARA. Türkçe konuş. Açık, sade ve kısa yanıt ver. Kullanıcıya yardımcı ol. Bilmediğin bilgiyi uydurma."),
+                            initialMessages = history.mapNotNull { line ->
+                                when (line.role) {
+                                    "Sen" -> Message.user(line.text)
+                                    assistantName -> Message.model(line.text)
+                                    else -> null
+                                }
+                            }
+                        )
+                    )
+                }
+            }
+        }
+
+        fun createNewChat() {
+            if (busy) return
+            persistHistory()
+            activeChatId = "chat-${System.currentTimeMillis()}"
+            lines.clear()
+            sessions.add(0, ChatSession(activeChatId, "Yeni sohbet", emptyList()))
+            persistHistory()
+            restoreConversation(emptyList())
+        }
+
+        fun openChat(session: ChatSession) {
+            if (busy || session.id == activeChatId) return
+            persistHistory()
+            activeChatId = session.id
+            lines.clear()
+            lines.addAll(session.lines)
+            persistHistory()
+            restoreConversation(session.lines)
+            showChatsDialog = false
         }
 
         fun launchSpeech(launcher: androidx.activity.result.ActivityResultLauncher<Intent>) {
@@ -390,12 +438,15 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(Modifier.weight(1f)) {
-                                Text("SOHBET ALANI", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
+                                Text("VOLTARA", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
                                 Text("Asistanınla konuşmaya başla", color = Color(0xFF829BAE), fontSize = 10.sp)
                             }
-                            Text("✦  $assistantName", color = Color(0xFFFF9857), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            TextButton(onClick = { showNameDialog = true }) {
-                                Text("Düzenle", color = Color(0xFF9CB1C1), fontSize = 10.sp)
+                            Text("✦  VOLTARA", color = Color(0xFFFF9857), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            TextButton(onClick = { showChatsDialog = true }) {
+                                Text("Sohbetler", color = Color(0xFF9CB1C1), fontSize = 10.sp)
+                            }
+                            TextButton(onClick = { createNewChat() }) {
+                                Text("+ Yeni", color = Color(0xFFFF9857), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                         HorizontalDivider(color = Color(0xFF20394B), thickness = 1.dp)
@@ -477,7 +528,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                             value = input,
                             onValueChange = { input = it },
                             modifier = Modifier.weight(1f),
-                            placeholder = { Text("ESG AI'ya mesaj yaz...", fontSize = 12.sp) },
+                            placeholder = { Text("Voltara'ya mesaj yaz...", fontSize = 12.sp) },
                             maxLines = 3,
                             shape = RoundedCornerShape(14.dp)
                         )
@@ -555,23 +606,8 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TextButton(onClick = {
-                        lines.clear()
-                        persistHistory()
-                        uiScope.launch {
-                            withContext(modelDispatcher) {
-                                conversation?.close()
-                                conversation = engine?.createConversation(
-                                    ConversationConfig(
-                                        systemInstruction = Contents.of(
-                                            "Senin adın $assistantName. Türkçe konuş. Açık, sade ve kısa yanıt ver."
-                                        )
-                                    )
-                                )
-                            }
-                        }
-                    }) {
-                        Text("⌫  Sohbeti temizle", color = Color(0xFF91A8B8), fontSize = 10.sp)
+                    TextButton(onClick = { createNewChat() }) {
+                        Text("+  Yeni sohbet", color = Color(0xFFFF9857), fontSize = 10.sp)
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Sesli yanıt", color = Color(0xFF91A8B8), fontSize = 10.sp)
@@ -591,6 +627,26 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                 }
             }
         }
+
+        if (showChatsDialog) {
+            AlertDialog(
+                onDismissRequest = { showChatsDialog = false },
+                title = { Text("Sohbet geçmişi") },
+                text = {
+                    Column(modifier = Modifier.heightIn(max = 360.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        sessions.forEach { session ->
+                            TextButton(onClick = { openChat(session) }, modifier = Modifier.fillMaxWidth()) {
+                                Text((if (session.id == activeChatId) "●  " else "") + session.title,
+                                    color = if (session.id == activeChatId) Color(0xFFFF9857) else Color.White, maxLines = 2)
+                            }
+                        }
+                    }
+                },
+                confirmButton = { TextButton(onClick = { showChatsDialog = false }) { Text("Kapat") } },
+                dismissButton = { TextButton(onClick = { showChatsDialog = false; createNewChat() }) { Text("Yeni sohbet") } }
+            )
+        }
+
         if (showOnlineDialog) {
             AlertDialog(
                 onDismissRequest = { showOnlineDialog = false },
@@ -677,39 +733,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
             )
         }
 
-        if (showNameDialog) {
-            var newName by remember { mutableStateOf(assistantName) }
-            AlertDialog(
-                onDismissRequest = { showNameDialog = false },
-                title = { Text("Asistan adını değiştir") },
-                text = {
-                    OutlinedTextField(
-                        value = newName,
-                        onValueChange = { newName = it },
-                        label = { Text("Asistan adı") }
-                    )
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        assistantName = newName.trim().ifBlank { "ESG" }
-                        prefs.edit().putString("assistant_name", assistantName).apply()
-                        showNameDialog = false
-                        status = "Ad kaydedildi. Yeni adın modele geçmesi için modeli yeniden yükle."
-                    }) {
-                        Text("Kaydet")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showNameDialog = false }) {
-                        Text("Vazgeç")
-                    }
-                }
-            )
-        }
-    }
-
- 
-    private fun transformBitmap(source: Bitmap, rotate: Float = 0f, grayscale: Boolean = false, brightness: Float = 1f): Bitmap {
+    }    private fun transformBitmap(source: Bitmap, rotate: Float = 0f, grayscale: Boolean = false, brightness: Float = 1f): Bitmap {
         val matrix = Matrix().apply { postRotate(rotate) }
         val rotated = if (rotate != 0f) Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true) else source
         val output = Bitmap.createBitmap(rotated.width, rotated.height, Bitmap.Config.ARGB_8888)
@@ -749,6 +773,27 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
             values.put(MediaStore.Images.Media.IS_PENDING, 0)
             contentResolver.update(uri, values, null, null)
         }
+    }
+
+
+    private fun readSessions(prefs: android.content.SharedPreferences): List<ChatSession> {
+        return try {
+            val raw = prefs.getString("chat_sessions", "[]") ?: "[]"
+            val array = JSONArray(raw)
+            (0 until array.length()).mapNotNull { index ->
+                val item = array.optJSONObject(index) ?: return@mapNotNull null
+                val id = item.optString("id")
+                val title = item.optString("title", "Yeni sohbet")
+                val messages = item.optJSONArray("lines") ?: JSONArray()
+                val history = (0 until messages.length()).mapNotNull { messageIndex ->
+                    val message = messages.optJSONObject(messageIndex) ?: return@mapNotNull null
+                    val role = message.optString("role")
+                    val text = message.optString("text")
+                    if (role.isNotBlank() && text.isNotBlank()) ChatLine(role, text) else null
+                }
+                if (id.isNotBlank()) ChatSession(id, title, history) else null
+            }
+        } catch (_: Exception) { emptyList() }
     }
 
     private fun readHistory(prefs: android.content.SharedPreferences): List<ChatLine> {
