@@ -108,6 +108,13 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         }
         val listState = rememberLazyListState()
 
+        // Keep the newest chat message visible, including when a long reply is updated.
+        LaunchedEffect(lines.size, lines.lastOrNull()?.text) {
+            if (lines.isNotEmpty()) {
+                listState.animateScrollToItem(lines.lastIndex)
+            }
+        }
+
         fun persistHistory() {
             val array = JSONArray()
             lines.forEach { line ->
