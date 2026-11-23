@@ -80,9 +80,12 @@ object HybridAiClient {
                     .put("mime_type", mimeType)
                     .put("data", Base64.encodeToString(imageBytes, Base64.NO_WRAP))))
             }
-            body = JSONObject().put("contents", JSONArray().put(
-                JSONObject().put("role", "user").put("parts", parts)
-            ))
+            body = JSONObject()
+                .put("contents", JSONArray().put(
+                    JSONObject().put("role", "user").put("parts", parts)
+                ))
+                // Gemini decides automatically whether the question needs live web research.
+                .put("tools", JSONArray().put(JSONObject().put("google_search", JSONObject())))
             connection = (URL(requestUrl).openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 connectTimeout = 20000
@@ -144,8 +147,22 @@ object HybridAiClient {
                         val text = part?.optString("text").orEmpty()
                         if (text.isNotBlank()) append(text)
                     }
+                }.ifBlank { "Gemini boş yanıt döndürdü." }
+
+                // Keep the sources returned by Google Search visible in the same chat reply.
+                val grounding = candidates.optJSONObject(0)?.optJSONObject("groundingMetadata")
+                val chunks = grounding?.optJSONArray("groundingChunks")
+                val sources = linkedMapOf<String, String>()
+                if (chunks != null) {
+                    for (i in 0 until chunks.length()) {
+                        val web = chunks.optJSONObject(i)?.optJSONObject("web") ?: continue
+                        val uri = web.optString("uri").takeIf { it.startsWith("https://") } ?: continue
+                        val title = web.optString("title").ifBlank { uri }
+                        sources.putIfAbsent(uri, title)
+                    }
                 }
-                answer.ifBlank { "Gemini boş yanıt döndürdü." }
+                if (sources.isEmpty()) answer else answer + "\n\nKaynaklar\n" +
+                    sources.entries.joinToString("\n") { "• ${it.value}\n  ${it.key}" }
             } else {
                 root.getJSONArray("choices").getJSONObject(0)
                     .getJSONObject("message").getString("content")
