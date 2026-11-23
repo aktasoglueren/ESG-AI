@@ -35,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -362,11 +363,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                             modifier = Modifier.fillMaxWidth().padding(18.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Surface(shape = RoundedCornerShape(13.dp), color = Color(0xFF202124), modifier = Modifier.size(44.dp)) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text("E⚡G", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Black)
-                                }
-                            }
+                            Image(painter = painterResource(R.drawable.ic_esg), contentDescription = "ESG AI", modifier = Modifier.size(44.dp))
                             Spacer(Modifier.width(12.dp))
                             Column {
                                 Text("ESG AI", color = fg, fontSize = 18.sp, fontWeight = FontWeight.Bold)
@@ -446,7 +443,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("✦", color = accent, fontSize = 19.sp)
+                            Image(painter = painterResource(R.drawable.ic_voltara), contentDescription = "VOLTARA", modifier = Modifier.size(34.dp))
                             Spacer(Modifier.width(9.dp))
                             Column(Modifier.weight(1f)) {
                                 Text("VOLTARA", color = fg, fontSize = 12.sp, fontWeight = FontWeight.Bold)
