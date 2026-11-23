@@ -85,6 +85,9 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         val prefs = remember { getSharedPreferences("esg_ai", MODE_PRIVATE) }
         val assistantName = "VOLTARA"
         var showChatsDialog by remember { mutableStateOf(false) }
+        var isDarkTheme by remember { mutableStateOf(prefs.getBoolean("dark_theme", true)) }
+        val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+        val drawerScope = rememberCoroutineScope()
         var modelReady by remember { mutableStateOf(false) }
         var busy by remember { mutableStateOf(false) }
         var status by remember { mutableStateOf("Başlamak için .litertlm model dosyanı seç.") }
@@ -327,299 +330,264 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
             if (!spoken.isNullOrBlank()) input = spoken
         }
 
-        val microphonePermission = rememberLauncherForActivityResult(
-            ActivityResultContracts.RequestPermission()
-        ) { granted ->
-            if (granted) launchSpeech(speechLauncher)
-            else status = "Sesli giriş için mikrofon izni gerekiyor."
-        }
+        val microphonePermission = rememberLauncherForActiv        val bg = if (isDarkTheme) Color(0xFF171717) else Color(0xFFF7F7F8)
+        val panel = if (isDarkTheme) Color(0xFF212121) else Color(0xFFFFFFFF)
+        val panelAlt = if (isDarkTheme) Color(0xFF2A2A2A) else Color(0xFFF0F1F3)
+        val fg = if (isDarkTheme) Color(0xFFF5F5F5) else Color(0xFF202124)
+        val muted = if (isDarkTheme) Color(0xFFA1A1AA) else Color(0xFF686B73)
+        val accent = Color(0xFF4D8DFF)
 
         MaterialTheme(
-            colorScheme = darkColorScheme(
-                primary = Color(0xFFFF650B),
-                background = Color(0xFF071B2C),
-                surface = Color(0xFF102B40)
+            colorScheme = if (isDarkTheme) darkColorScheme(
+                primary = accent, background = bg, surface = panel, onBackground = fg, onSurface = fg
+            ) else lightColorScheme(
+                primary = Color(0xFF2563EB), background = bg, surface = panel, onBackground = fg, onSurface = fg
             )
         ) {
-            Column(
-                modifier = Modifier.fillMaxSize()
-                    .background(Color(0xFF07131F))
-                    .padding(horizontal = 18.dp, vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(13.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(17.dp),
-                        color = Color(0xFFFF650B),
-                        modifier = Modifier.size(52.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text("E⚡G", color = Color(0xFF07131F), fontSize = 17.sp, fontWeight = FontWeight.Black)
-                        }
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("ESG AI", color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.ExtraBold)
-                        Text("INTELLIGENCE • YOUR WORKSPACE", color = Color(0xFF8FA7B9), fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                    }
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = if (modelReady) Color(0xFF123B32) else Color(0xFF263442)
+            ModalNavigationDrawer(
+                drawerState = drawerState,
+                drawerContent = {
+                    ModalDrawerSheet(
+                        drawerContainerColor = panel,
+                        drawerContentColor = fg
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(18.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(Modifier.size(7.dp).background(if (modelReady) Color(0xFF42D6A0) else Color(0xFFFFA24A), RoundedCornerShape(50)))
-                            Spacer(Modifier.width(7.dp))
-                            Text(if (modelReady) "HAZIR" else "BEKLEMEDE", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-
-                // Compact, clearly visible model selector at the top of the workspace.
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(17.dp),
-                    color = Color(0xFF10283B)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = Color(0x1FFF650B),
-                            modifier = Modifier.size(34.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text("✦", color = Color(0xFFFF9857), fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                        Spacer(Modifier.width(10.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text("YAPAY ZEKÂ MODELİ", color = Color(0xFF9CB3C3), fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                            Text(
-                                if (modelReady) "Yerel model hazır" else "Model seç veya yükle",
-                                color = Color.White,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Button(
-                            onClick = { modelPicker.launch(arrayOf("*/*")) },
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 13.dp, vertical = 9.dp)
-                        ) {
-                            Text(if (modelReady) "Değiştir" else "Model seç", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        }
-                        Spacer(Modifier.width(7.dp))
-                        OutlinedButton(
-                            onClick = { showOnlineDialog = true },
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 9.dp)
-                        ) {
-                            Text("Online", fontSize = 11.sp)
-                        }
-                    }
-                }
-
-                Surface(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                    shape = RoundedCornerShape(23.dp),
-                    color = Color(0xFF0C2030)
-                ) {
-                    Column(Modifier.fillMaxSize().padding(14.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text("VOLTARA", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
-                                Text("Asistanınla konuşmaya başla", color = Color(0xFF829BAE), fontSize = 10.sp)
-                            }
-                            Text("✦  VOLTARA", color = Color(0xFFFF9857), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            TextButton(onClick = { showChatsDialog = true }) {
-                                Text("Sohbetler", color = Color(0xFF9CB1C1), fontSize = 10.sp)
-                            }
-                            TextButton(onClick = { createNewChat() }) {
-                                Text("+ Yeni", color = Color(0xFFFF9857), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                        HorizontalDivider(color = Color(0xFF20394B), thickness = 1.dp)
-                        Spacer(Modifier.height(9.dp))
-                        LazyColumn(
-                            modifier = Modifier.weight(1f).fillMaxWidth(),
-                            state = listState,
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            if (lines.isEmpty()) {
-                                item {
-                                    Column(
-                                        modifier = Modifier.fillMaxWidth().padding(top = 28.dp, bottom = 20.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Surface(
-                                            shape = RoundedCornerShape(22.dp),
-                                            color = Color(0xFF172F42),
-                                            modifier = Modifier.size(62.dp)
-                                        ) {
-                                            Box(contentAlignment = Alignment.Center) {
-                                                Text("✦", color = Color(0xFFFF8B43), fontSize = 30.sp)
-                                            }
-                                        }
-                                        Spacer(Modifier.height(14.dp))
-                                        Text("Nasıl yardımcı olabilirim?", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                                        Spacer(Modifier.height(6.dp))
-                                        Text(
-                                            "Yerel modeli yükleyebilir veya çevrimiçi bağlantını ayarlayabilirsin.",
-                                            color = Color(0xFF91A8B8),
-                                            fontSize = 11.sp
-                                        )
-                                    }
+                            Surface(shape = RoundedCornerShape(13.dp), color = Color(0xFF202124), modifier = Modifier.size(44.dp)) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text("E⚡G", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Black)
                                 }
                             }
-                            items(lines) { line ->
-                                val isUser = line.role == "Sen"
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
-                                ) {
-                                    Surface(
-                                        color = if (isUser) Color(0xFF71350F) else Color(0xFF183247),
-                                        shape = RoundedCornerShape(
-                                            topStart = 17.dp,
-                                            topEnd = 17.dp,
-                                            bottomStart = if (isUser) 17.dp else 5.dp,
-                                            bottomEnd = if (isUser) 5.dp else 17.dp
-                                        ),
-                                        modifier = Modifier.fillMaxWidth(0.88f)
-                                    ) {
-                                        Column(Modifier.padding(horizontal = 13.dp, vertical = 11.dp)) {
-                                            Text(
-                                                line.role.uppercase(Locale.ROOT),
-                                                color = if (isUser) Color(0xFFFFC08D) else Color(0xFFFF9857),
-                                                fontSize = 9.sp,
-                                                fontWeight = FontWeight.ExtraBold
-                                            )
-                                            Spacer(Modifier.height(4.dp))
-                                            Text(line.text, color = Color(0xFFF4F7FA), fontSize = 13.sp, lineHeight = 19.sp)
-                                        }
-                                    }
-                                }
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text("ESG AI", color = fg, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                Text("VOLTARA", color = muted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                             }
                         }
-                    }
-                }
-
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(19.dp),
-                    color = Color(0xFF132A3C)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(start = 10.dp, end = 7.dp, top = 5.dp, bottom = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedTextField(
-                            value = input,
-                            onValueChange = { input = it },
-                            modifier = Modifier.weight(1f),
-                            placeholder = { Text("Voltara'ya mesaj yaz...", fontSize = 12.sp) },
-                            maxLines = 3,
-                            shape = RoundedCornerShape(14.dp)
+                        HorizontalDivider(color = muted.copy(alpha = 0.2f))
+                        NavigationDrawerItem(
+                            label = { Text("Yeni sohbet") },
+                            selected = false,
+                            icon = { Text("+", fontSize = 20.sp, color = accent) },
+                            onClick = { createNewChat(); drawerScope.launch { drawerState.close() } },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                         )
-                        IconButton(onClick = { imagePicker.launch("image/*") }) {
-                            Text("＋", color = Color(0xFFFF9857), fontSize = 24.sp)
-                        }
-                        IconButton(onClick = {
-                            if (ContextCompat.checkSelfPermission(
-                                    this@MainActivity,
-                                    Manifest.permission.RECORD_AUDIO
-                                ) == PackageManager.PERMISSION_GRANTED
-                            ) {
-                                launchSpeech(speechLauncher)
-                            } else {
-                                microphonePermission.launch(Manifest.permission.RECORD_AUDIO)
-                            }
-                        }) {
-                            Text("🎙", fontSize = 21.sp)
-                        }
-                        Button(
-                            enabled = (modelReady || (useOnline && onlineConfig != null)) && !busy && (input.isNotBlank() || selectedBitmap != null),
+                        NavigationDrawerItem(
+                            label = { Text("Sohbet geçmişi") },
+                            selected = false,
+                            icon = { Text("◷", fontSize = 19.sp, color = muted) },
+                            onClick = { showChatsDialog = true; drawerScope.launch { drawerState.close() } },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+                        NavigationDrawerItem(
+                            label = { Text("Model seçimi") },
+                            selected = false,
+                            icon = { Text("✦", fontSize = 18.sp, color = accent) },
+                            onClick = { modelPicker.launch(arrayOf("*/*")); drawerScope.launch { drawerState.close() } },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+                        NavigationDrawerItem(
+                            label = { Text("Çevrimiçi bağlantı") },
+                            selected = false,
+                            icon = { Text("◎", fontSize = 18.sp, color = muted) },
+                            onClick = { showOnlineDialog = true; drawerScope.launch { drawerState.close() } },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+                        HorizontalDivider(color = muted.copy(alpha = 0.2f), modifier = Modifier.padding(vertical = 8.dp))
+                        NavigationDrawerItem(
+                            label = { Text(if (isDarkTheme) "Açık temaya geç" else "Koyu temaya geç") },
+                            selected = false,
+                            icon = { Text(if (isDarkTheme) "☀" else "☾", fontSize = 18.sp, color = accent) },
                             onClick = {
-                                val prompt = input.trim().ifBlank { "Bu görseli incele ve yardımcı ol." }
-                                val imageForRequest = selectedBitmap
-                                input = ""
-                                selectedBitmap = null
-                                lines.add(ChatLine("Sen", if (imageForRequest != null) "📷 Görsel eklendi. $prompt" else prompt))
-                                persistHistory()
-                                busy = true
-                                val replyIndex = lines.size
-                                lines.add(ChatLine(assistantName, "Yanıt hazırlanıyor..."))
-                                uiScope.launch {
-                                    try {
-                                        val answer = if (useOnline && onlineConfig != null) {
-                                            val bytes = imageForRequest?.let { bitmap ->
-                                                java.io.ByteArrayOutputStream().use { out ->
-                                                    bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
-                                                    out.toByteArray()
+                                isDarkTheme = !isDarkTheme
+                                prefs.edit().putBoolean("dark_theme", isDarkTheme).apply()
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+                        Spacer(Modifier.weight(1f))
+                        Text("Yapay zekân, her an yanında.", color = muted, fontSize = 11.sp, modifier = Modifier.padding(20.dp))
+                    }
+                }
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxSize().background(bg).padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = { drawerScope.launch { drawerState.open() } }) {
+                            Text("☰", color = fg, fontSize = 23.sp)
+                        }
+                        Column(Modifier.weight(1f)) {
+                            Text("ESG AI", color = fg, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                            Text("Yapay zekân, her an yanında.", color = muted, fontSize = 10.sp)
+                        }
+                        Surface(shape = RoundedCornerShape(50), color = if (modelReady) Color(0xFFDCFCE7) else panelAlt) {
+                            Text(if (modelReady) "● HAZIR" else "● BEKLEMEDE",
+                                color = if (modelReady) Color(0xFF16834A) else muted,
+                                fontSize = 9.sp, fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp))
+                        }
+                    }
+
+                    Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), color = panel) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("✦", color = accent, fontSize = 19.sp)
+                            Spacer(Modifier.width(9.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text("VOLTARA", color = fg, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(if (useOnline && onlineConfig != null) "Çevrimiçi model" else if (modelReady) "Cihazdaki model" else "Model seçilmedi",
+                                    color = muted, fontSize = 10.sp)
+                            }
+                            TextButton(onClick = { showOnlineDialog = true }) { Text("Çevrimiçi", fontSize = 10.sp) }
+                            TextButton(onClick = { modelPicker.launch(arrayOf("*/*")) }) { Text("Model seç", fontSize = 10.sp) }
+                        }
+                    }
+
+                    Surface(modifier = Modifier.weight(1f).fillMaxWidth(), shape = RoundedCornerShape(20.dp), color = panel) {
+                        Column(Modifier.fillMaxSize().padding(14.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(if (lines.isEmpty()) "Nasıl yardımcı olabilirim?" else "VOLTARA", color = fg, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                    Text("Sor, üret, keşfet.", color = muted, fontSize = 10.sp)
+                                }
+                                TextButton(onClick = { createNewChat() }) { Text("+ Yeni", color = accent, fontWeight = FontWeight.Bold) }
+                            }
+                            HorizontalDivider(color = muted.copy(alpha = 0.18f))
+                            Spacer(Modifier.height(8.dp))
+                            LazyColumn(
+                                modifier = Modifier.weight(1f).fillMaxWidth(),
+                                state = listState,
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                if (lines.isEmpty()) {
+                                    item {
+                                        Column(
+                                            modifier = Modifier.fillMaxWidth().padding(top = 34.dp, bottom = 20.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Surface(shape = RoundedCornerShape(20.dp), color = panelAlt, modifier = Modifier.size(62.dp)) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Text("✦", color = accent, fontSize = 30.sp)
                                                 }
                                             }
-                                            HybridAiClient.ask(onlineConfig!!, prompt, bytes)
-                                        } else {
-                                            require(imageForRequest == null) { "Görsel analizi için çevrimiçi modu etkinleştirip API bağlantısı kur." }
-                                            withContext(modelDispatcher) {
-                                                val output = StringBuilder()
-                                                checkNotNull(conversation)
-                                                    .sendMessageAsync(prompt)
-                                                    .collect { chunk -> output.append(chunk.toString()) }
-                                                output.toString()
-                                            }
+                                            Spacer(Modifier.height(15.dp))
+                                            Text("Bugün ne yapmak istersin?", color = fg, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                                            Spacer(Modifier.height(6.dp))
+                                            Text("Bir soru sorabilir, görsel ekleyebilir veya dosyanı inceletebilirsin.",
+                                                color = muted, fontSize = 11.sp)
                                         }
-                                        lines[replyIndex] = ChatLine(assistantName, answer.ifBlank { "Yanıt alınamadı." })
-                                        persistHistory()
-                                        if (speakReplies && ttsReady && answer.isNotBlank()) {
-                                            tts?.speak(answer, TextToSpeech.QUEUE_FLUSH, null, "esg_ai_reply")
-                                        }
-                                    } catch (error: Exception) {
-                                        lines[replyIndex] = ChatLine("Sistem", "Hata: ${error.message ?: "Yanıt alınamadı."}")
-                                        persistHistory()
-                                    } finally {
-                                        busy = false
                                     }
                                 }
-                            },
-                            shape = RoundedCornerShape(13.dp),
-                            contentPadding = PaddingValues(horizontal = 13.dp, vertical = 12.dp)
+                                items(lines) { line ->
+                                    val isUser = line.role == "Sen"
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
+                                    ) {
+                                        Surface(
+                                            color = if (isUser) panelAlt else bg,
+                                            shape = RoundedCornerShape(18.dp),
+                                            modifier = Modifier.fillMaxWidth(if (isUser) 0.86f else 0.94f)
+                                        ) {
+                                            Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+                                                if (!isUser) Text("VOLTARA", color = accent, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                                Text(line.text, color = fg, fontSize = 14.sp, lineHeight = 21.sp)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp), color = panel) {
+                        Row(
+                            modifier = Modifier.padding(start = 8.dp, end = 6.dp, top = 5.dp, bottom = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("➤", fontSize = 17.sp)
+                            OutlinedTextField(
+                                value = input,
+                                onValueChange = { input = it },
+                                modifier = Modifier.weight(1f),
+                                placeholder = { Text("VOLTARA'ya mesaj yaz...", fontSize = 12.sp) },
+                                maxLines = 4,
+                                shape = RoundedCornerShape(17.dp)
+                            )
+                            IconButton(onClick = { imagePicker.launch("image/*") }) { Text("+", color = accent, fontSize = 24.sp) }
+                            IconButton(onClick = {
+                                if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                                    launchSpeech(speechLauncher)
+                                } else microphonePermission.launch(Manifest.permission.RECORD_AUDIO)
+                            }) { Text("🎙", fontSize = 20.sp) }
+                            Button(
+                                enabled = (modelReady || (useOnline && onlineConfig != null)) && !busy && (input.isNotBlank() || selectedBitmap != null),
+                                onClick = {
+                                    val prompt = input.trim().ifBlank { "Bu görseli incele ve yardımcı ol." }
+                                    val imageForRequest = selectedBitmap
+                                    input = ""
+                                    selectedBitmap = null
+                                    lines.add(ChatLine("Sen", if (imageForRequest != null) "📷 Görsel eklendi. $prompt" else prompt))
+                                    persistHistory()
+                                    busy = true
+                                    val replyIndex = lines.size
+                                    lines.add(ChatLine(assistantName, "Yanıt hazırlanıyor..."))
+                                    uiScope.launch {
+                                        try {
+                                            val answer = if (useOnline && onlineConfig != null) {
+                                                val bytes = imageForRequest?.let { bitmap ->
+                                                    java.io.ByteArrayOutputStream().use { out ->
+                                                        bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
+                                                        out.toByteArray()
+                                                    }
+                                                }
+                                                HybridAiClient.ask(onlineConfig!!, prompt, bytes)
+                                            } else {
+                                                require(imageForRequest == null) { "Görsel analizi için çevrimiçi modu etkinleştirip API bağlantısı kur." }
+                                                withContext(modelDispatcher) {
+                                                    val output = StringBuilder()
+                                                    checkNotNull(conversation).sendMessageAsync(prompt).collect { chunk -> output.append(chunk.toString()) }
+                                                    output.toString()
+                                                }
+                                            }
+                                            lines[replyIndex] = ChatLine(assistantName, answer.ifBlank { "Yanıt alınamadı." })
+                                            persistHistory()
+                                            if (speakReplies && ttsReady && answer.isNotBlank()) {
+                                                tts?.speak(answer, TextToSpeech.QUEUE_FLUSH, null, "esg_ai_reply")
+                                            }
+                                        } catch (error: Exception) {
+                                            lines[replyIndex] = ChatLine("Sistem", "Hata: ${error.message ?: "Yanıt alınamadı."}")
+                                            persistHistory()
+                                        } finally { busy = false }
+                                    }
+                                },
+                                shape = RoundedCornerShape(14.dp),
+                                contentPadding = PaddingValues(horizontal = 13.dp, vertical = 12.dp)
+                            ) { Text("↑", fontSize = 20.sp) }
+                        }
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = { createNewChat() }) { Text("Yeni sohbet", color = muted, fontSize = 10.sp) }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Sesli yanıt", color = muted, fontSize = 10.sp)
+                            Switch(checked = speakReplies, onCheckedChange = { speakReplies = it })
+                            TextButton(onClick = {
+                                val lastReply = lines.lastOrNull { it.role != "Sen" }?.text
+                                if (!lastReply.isNullOrBlank() && ttsReady) tts?.speak(lastReply, TextToSpeech.QUEUE_FLUSH, null, "esg_ai_manual")
+                            }) { Text("Oku", color = accent, fontSize = 10.sp) }
                         }
                     }
                 }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextButton(onClick = { createNewChat() }) {
-                        Text("+  Yeni sohbet", color = Color(0xFFFF9857), fontSize = 10.sp)
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Sesli yanıt", color = Color(0xFF91A8B8), fontSize = 10.sp)
-                        Switch(
-                            checked = speakReplies,
-                            onCheckedChange = { speakReplies = it }
-                        )
-                        TextButton(onClick = {
-                            val lastReply = lines.lastOrNull { it.role != "Sen" }?.text
-                            if (!lastReply.isNullOrBlank() && ttsReady) {
-                                tts?.speak(lastReply, TextToSpeech.QUEUE_FLUSH, null, "esg_ai_manual")
-                            }
+            }
+        }
+                   }
                         }) {
                             Text("Oku", color = Color(0xFFFF9857), fontSize = 10.sp)
                         }
