@@ -191,6 +191,61 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
             }
         }
 
+        // Reuse the model already copied into app-private filesDir.
+        // This avoids asking the user to pick the same model on every launch.
+        LaunchedEffect(Unit) {
+            val savedModelFile = File(filesDir, "assistant.litertlm")
+            if (savedModelFile.isFile && savedModelFile.length() > 0L) {
+                busy = true
+                status = "Kayıtlı model otomatik yükleniyor..."
+                try {
+                    withContext(modelDispatcher) {
+                        conversation?.close()
+                        conversation = null
+                        engine?.close()
+                        engine = null
+
+                        val restoredEngine = Engine(
+                            EngineConfig(
+                                modelPath = savedModelFile.absolutePath,
+                                backend = Backend.CPU(),
+                                cacheDir = cacheDir.absolutePath
+                            )
+                        )
+                        restoredEngine.initialize()
+                        val historyMessages = lines.mapNotNull { line ->
+                            when (line.role) {
+                                "Sen" -> Message.user(line.text)
+                                assistantName -> Message.model(line.text)
+                                else -> null
+                            }
+                        }
+                        val restoredConversation = restoredEngine.createConversation(
+                            ConversationConfig(
+                                systemInstruction = Contents.of(
+                                    "Senin adın $assistantName. Türkçe konuş. " +
+                                        "Açık, sade ve kısa yanıt ver. Kullanıcıya doğrudan yardımcı ol. " +
+                                        "Bilmediğin bilgiyi uydurma."
+                                ),
+                                initialMessages = historyMessages
+                            )
+                        )
+                        engine = restoredEngine
+                        conversation = restoredConversation
+                    }
+                    modelReady = true
+                    status = "Hazır. Kayıtlı model otomatik yüklendi."
+                } catch (error: Exception) {
+                    modelReady = false
+                    status = "Kayıtlı model açılamadı: ${error.message ?: "Bilinmeyen hata"}. Modeli yeniden seçebilirsin."
+                } finally {
+                    busy = false
+                }
+            } else {
+                status = "Başlamak için .litertlm model dosyanı bir kez seç."
+            }
+        }
+
         val imagePicker = rememberLauncherForActivityResult(
             ActivityResultContracts.GetContent()
         ) { uri ->
