@@ -330,7 +330,14 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
             if (!spoken.isNullOrBlank()) input = spoken
         }
 
-        val microphonePermission = rememberLauncherForActiv        val bg = if (isDarkTheme) Color(0xFF171717) else Color(0xFFF7F7F8)
+        val microphonePermission = rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            if (granted) launchSpeech(speechLauncher)
+            else status = "Sesli giriş için mikrofon izni gerekli."
+        }
+
+        val bg = if (isDarkTheme) Color(0xFF171717) else Color(0xFFF7F7F8)
         val panel = if (isDarkTheme) Color(0xFF212121) else Color(0xFFFFFFFF)
         val panelAlt = if (isDarkTheme) Color(0xFF2A2A2A) else Color(0xFFF0F1F3)
         val fg = if (isDarkTheme) Color(0xFFF5F5F5) else Color(0xFF202124)
@@ -582,14 +589,6 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                                 val lastReply = lines.lastOrNull { it.role != "Sen" }?.text
                                 if (!lastReply.isNullOrBlank() && ttsReady) tts?.speak(lastReply, TextToSpeech.QUEUE_FLUSH, null, "esg_ai_manual")
                             }) { Text("Oku", color = accent, fontSize = 10.sp) }
-                        }
-                    }
-                }
-            }
-        }
-                   }
-                        }) {
-                            Text("Oku", color = Color(0xFFFF9857), fontSize = 10.sp)
                         }
                     }
                 }
