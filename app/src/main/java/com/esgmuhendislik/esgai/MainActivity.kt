@@ -332,36 +332,49 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                     }
                 }
 
+                // Compact, clearly visible model selector at the top of the workspace.
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(25.dp),
+                    shape = RoundedCornerShape(17.dp),
                     color = Color(0xFF10283B)
                 ) {
-                    Column(Modifier.padding(19.dp)) {
-                        Text("KİŞİSEL YAPAY ZEKÂ ALANIN", color = Color(0xFFFF9857), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(8.dp))
-                        Text("Fikirlerini\nharekete geçir.", color = Color.White, fontSize = 27.sp, lineHeight = 31.sp, fontWeight = FontWeight.ExtraBold)
-                        Spacer(Modifier.height(7.dp))
-                        Text("Sor, üret, keşfet. ESG AI yanında.", color = Color(0xFFB4C4D1), fontSize = 13.sp)
-                        Spacer(Modifier.height(15.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Button(
-                                onClick = { modelPicker.launch(arrayOf("*/*")) },
-                                shape = RoundedCornerShape(14.dp),
-                                contentPadding = PaddingValues(horizontal = 17.dp, vertical = 11.dp)
-                            ) {
-                                Text(if (modelReady) "Modeli değiştir" else "Modelini yükle", fontWeight = FontWeight.Bold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = Color(0x1FFF650B),
+                            modifier = Modifier.size(34.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text("✦", color = Color(0xFFFF9857), fontSize = 17.sp, fontWeight = FontWeight.Bold)
                             }
-                            Spacer(Modifier.width(8.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(if (modelReady) "YEREL MOTOR AKTİF" else "YEREL MOTOR", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                Text(if (modelReady) "Cihazında çalışıyor" else "Model bekleniyor", color = Color(0xFF91A9B9), fontSize = 10.sp)
-                            }
-                            OutlinedButton(
-                                onClick = { showOnlineDialog = true },
-                                shape = RoundedCornerShape(13.dp),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 9.dp)
-                            ) { Text("Çevrimiçi", fontSize = 11.sp) }
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("YAPAY ZEKÂ MODELİ", color = Color(0xFF9CB3C3), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                            Text(
+                                if (modelReady) "Yerel model hazır" else "Model seç veya yükle",
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Button(
+                            onClick = { modelPicker.launch(arrayOf("*/*")) },
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 13.dp, vertical = 9.dp)
+                        ) {
+                            Text(if (modelReady) "Değiştir" else "Model seç", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(Modifier.width(7.dp))
+                        OutlinedButton(
+                            onClick = { showOnlineDialog = true },
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 9.dp)
+                        ) {
+                            Text("Online", fontSize = 11.sp)
                         }
                     }
                 }
