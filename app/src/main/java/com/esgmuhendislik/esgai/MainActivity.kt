@@ -96,9 +96,8 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         var speakReplies by remember { mutableStateOf(true) }
         var showOnlineDialog by remember { mutableStateOf(false) }
         var showEditor by remember { mutableStateOf(false) }
-        var useOnline by remember { mutableStateOf(false) }
-        var onlineConfig by remember { mutableStateOf(HybridAiClient.loadConfig(this@MainActivity)) }
-        var endpointInput by remember { mutableStateOf(onlineConfig?.endpoint ?: "https://api.openai.com/v1/chat/completions") }
+         var onlineConfig by remember { mutableStateOf(HybridAiClient.loadConfig(this@MainActivity)) }
+        var endpointInput by remember { mutableStateOf(onlineConfig?.endpoint ?: "https://generativelanguage.googleapis.com/v1beta/models") }
         var modelInput by remember { mutableStateOf(onlineConfig?.model ?: "") }
         var apiKeyInput by remember { mutableStateOf("") }
         var selectedBitmap by remember { mutableStateOf<Bitmap?>(null) }
@@ -447,7 +446,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                             Spacer(Modifier.width(9.dp))
                             Column(Modifier.weight(1f)) {
                                 Text("VOLTARA", color = fg, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                Text(if (useOnline && onlineConfig != null) "Çevrimiçi model" else if (modelReady) "Cihazdaki model" else "Model seçilmedi",
+                                Text(if (onlineConfig != null) "İnternet araştırması hazır" else if (modelReady) "Cihazdaki model" else "Model seçilmedi",
                                     color = muted, fontSize = 10.sp)
                             }
                             TextButton(onClick = { showOnlineDialog = true }) { Text("Çevrimiçi", fontSize = 10.sp) }
@@ -532,7 +531,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                                 } else microphonePermission.launch(Manifest.permission.RECORD_AUDIO)
                             }) { Text("🎙", fontSize = 20.sp) }
                             Button(
-                                enabled = (modelReady || (useOnline && onlineConfig != null)) && !busy && (input.isNotBlank() || selectedBitmap != null),
+                                enabled = (modelReady || onlineConfig != null) && !busy && (input.isNotBlank() || selectedBitmap != null),
                                 onClick = {
                                     val prompt = input.trim().ifBlank { "Bu görseli incele ve yardımcı ol." }
                                     val imageForRequest = selectedBitmap
@@ -545,7 +544,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                                     lines.add(ChatLine(assistantName, "Yanıt hazırlanıyor..."))
                                     uiScope.launch {
                                         try {
-                                            val answer = if (useOnline && onlineConfig != null) {
+                                            val answer = if (onlineConfig != null) {
                                                 val bytes = imageForRequest?.let { bitmap ->
                                                     java.io.ByteArrayOutputStream().use { out ->
                                                         bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
@@ -617,14 +616,11 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                 title = { Text("Çevrimiçi yapay zekâ bağlantısı") },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("OpenAI uyumlu HTTPS servis bilgilerini gir. API anahtarı cihazında şifreli saklanır.", fontSize = 12.sp)
+                        Text("Gemini API bilgilerini gir. Google Arama destekli Gemini modeli kullanırsan VOLTARA gerektiğinde web'de araştırma yapar. Anahtar cihazında şifreli saklanır.", fontSize = 12.sp)
                         OutlinedTextField(value = endpointInput, onValueChange = { endpointInput = it }, label = { Text("API adresi") }, singleLine = true)
                         OutlinedTextField(value = modelInput, onValueChange = { modelInput = it }, label = { Text("Model adı") }, singleLine = true)
                         OutlinedTextField(value = apiKeyInput, onValueChange = { apiKeyInput = it }, label = { Text("API anahtarı") }, singleLine = true)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Switch(checked = useOnline, onCheckedChange = { useOnline = it }, enabled = onlineConfig != null || modelInput.isNotBlank())
-                            Text("Çevrimiçi modu kullan", fontSize = 12.sp)
-                        }
+                        Text("VOLTARA gerektiğinde internetten araştırma yapar ve bulduğu kaynakları aynı sohbet yanıtında gösterir.", color = Color(0xFF2E9D73), fontSize = 11.sp)
                         if (onlineConfig != null) Text("Bağlantı ayarlı. Yeni anahtar girerek değiştirebilirsin.", color = Color(0xFF2E9D73), fontSize = 11.sp)
                     }
                 },
@@ -637,16 +633,14 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                                 apiKeyInput = ""
                             }
                             if (onlineConfig == null) error("Önce API adresi, model ve API anahtarı kaydet.")
-                            useOnline = true
-                            showOnlineDialog = false
-                            status = "Çevrimiçi bağlantı ayarlandı. İlk mesajında servis bağlantısı sınanacak."
+                             showOnlineDialog = false
+                            status = "Bağlantı kaydedildi. İnternet araştırması aynı sohbet içinde otomatik kullanılacak."
                         } catch (error: Exception) { status = error.message ?: "Ayar kaydedilemedi." }
                     }) { Text("Kaydet ve etkinleştir") }
                 },
                 dismissButton = {
                     TextButton(onClick = {
-                        useOnline = false
-                        showOnlineDialog = false
+                         showOnlineDialog = false
                     }) { Text("Kapat") }
                 }
             )
